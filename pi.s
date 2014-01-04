@@ -70,7 +70,7 @@ cntoff 1
 	mprint	mp_a		; print it (note mp_a hosed)
 	jsr	crout		; print CR
 	;jmp	warm
-        jmp *
+        jmp getch
         rts
 .endproc
 
@@ -78,6 +78,7 @@ ICBAL = $344
 ICCOM = $342
 ICBLL = $348
 PUT = $0B
+GET = $07
 CIOV = $E456
 
 ; http://www.easy68k.com/paulrsm/6502/MON.TXT
@@ -118,6 +119,20 @@ cout:
         pla
         tax
         rts
+getch:
+        lda #<buffer
+        sta ICBAL
+        lda #>buffer
+        sta ICBAL+1
+        lda #GET
+        sta ICCOM
+        lda #1
+        sta ICBLL
+        lda #0
+        sta ICBLL+1
+        ldx #0
+        jsr CIOV
+        rts 
 buffer:
         .res 1
 
