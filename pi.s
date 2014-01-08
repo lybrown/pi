@@ -97,6 +97,7 @@ prhexz:
         bcc cout
         adc #$06
 cout:
+        eor #$80
         sta buffer
         txa
         pha
