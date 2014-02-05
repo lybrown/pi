@@ -22,43 +22,43 @@
 
 ;; Apple-1 variables/vectors
 
-cout	=	$FFEF		; character out sub
-prbyte	=	$FFDC		; print a hex byte
-warm	=	$FF1F		; back to monitor
-
+;cout	=	$FFEF		; character out sub
+;prbyte	=	$FFDC		; print a hex byte
+;warm	=	$FF1F		; back to monitor
 
 ;; my global variables/vectors
 
-ptr	=	$0		; $0-$1 16 bit generic pointer
-ptr_mp	=	$2		; $2-$3 16 bit generic pointer
-a32	=	$4		; $4-$7 32 bit number
-carry_mp=	$4		; $4-$4  8 bit multiprecision carry
+ptr	=	$80		; $0-$1 16 bit generic pointer
+ptr_mp	=	$82		; $2-$3 16 bit generic pointer
+a32	=	$84		; $4-$7 32 bit number
+carry_mp=	$84		; $4-$4  8 bit multiprecision carry
 				;          32/16 div
-dividend=	$4		; $4-$7 32 bit
-remainder=	$4		; $4-$5 16 bit
-quotient=	$6		; $6-$7 16 bit
-divisor	=	$8		; $8-$9 16 bit
-temp	=	$7		; $7-$7  8 bit for mult100 code
-mtmp	=	$8		; $8-$8  8 bit for mult100 code
+dividend=	$84		; $4-$7 32 bit
+remainder=	$84		; $4-$5 16 bit
+quotient=	$86		; $6-$7 16 bit
+divisor	=	$88		; $8-$9 16 bit
+temp	=	$87		; $7-$7  8 bit for mult100 code
+mtmp	=	$88		; $8-$8  8 bit for mult100 code
 
 				;          backup regs
-yreg	=	$A		; $A-$A  8 bit
-xreg	=	$B		; $B-$B  8 bit
+yreg	=	$8A		; $A-$A  8 bit
+xreg	=	$8B		; $B-$B  8 bit
 
+RUNAD = $2e0
 
-org	=	$280		; start here
+org	=	$2000		; start here
 bin_len	=	418		; ceil(1001 / log(256)) + 1 (+ 1 if odd) = 418
 dec_len	=	1000		; 1000 decimal digits
 
 
 ;; start of global macros
-
 .include	"pimacros.m"
-
 ;; end of macros
 
 ;; start of real code
-	.org	org
+.CODE
+.proc main
+
 begin:
 	jsr	crout		; print CR
 	jsr	crout		; print CR
@@ -69,7 +69,73 @@ cnton 1
 cntoff 1
 	mprint	mp_a		; print it (note mp_a hosed)
 	jsr	crout		; print CR
-	jmp	warm
+	;jmp	warm
+        jmp getch
+        rts
+.endproc
+
+ICBAL = $344
+ICCOM = $342
+ICBLL = $348
+PUT = $0B
+GET = $07
+CIOV = $E456
+
+; http://www.easy68k.com/paulrsm/6502/MON.TXT
+prbyte:
+        pha
+        lsr
+        lsr
+        lsr
+        lsr
+        jsr prhexz
+        pla
+        and #$0F
+prhexz:
+        ora #$B0
+        cmp #$BA
+        bcc cout
+        adc #$06
+cout:
+        eor #$80
+        sta buffer
+        txa
+        pha
+        tya
+        pha
+        lda #<buffer
+        sta ICBAL
+        lda #>buffer
+        sta ICBAL+1
+        lda #PUT
+        sta ICCOM
+        lda #1
+        sta ICBLL
+        lda #0
+        sta ICBLL+1
+        ldx #0
+        jsr CIOV
+        pla
+        tay
+        pla
+        tax
+        rts
+getch:
+        lda #<buffer
+        sta ICBAL
+        lda #>buffer
+        sta ICBAL+1
+        lda #GET
+        sta ICCOM
+        lda #1
+        sta ICBLL
+        lda #0
+        sta ICBLL+1
+        ldx #0
+        jsr CIOV
+        rts 
+buffer:
+        .res 1
 
 
 ;; end of main code, start of non-zp allocations, consider move to zp
@@ -927,7 +993,7 @@ crout:	lda	#$8D
 bintobcd:
 	pha
 	sec
-	ldx	#-1
+	ldx	#$FF
 :	inx
 	sbc	#10
 	bpl	:-
@@ -942,12 +1008,26 @@ bintobcd:
 ; data
 
 mp_a_array:
-	.org	*+bin_len
+	;.org	*+bin_len
+        .res bin_len
 mp_b_array:
-	.org	*+bin_len
+	;.org	*+bin_len
+        .res bin_len
 mp_x_array:
-	.org	*+bin_len
+	;.org	*+bin_len
+        .res bin_len
 mp_y_array:
-	.org	*+bin_len
+	;.org	*+bin_len
+        .res bin_len
 
 end:
+
+.SEGMENT "EXEHDR"
+.word	$FFFF
+.word	main
+.word	end-1
+
+.segment "AUTOSTRT"
+.word	RUNAD			; defined in atari.h
+.word	RUNAD+1
+.word	main
